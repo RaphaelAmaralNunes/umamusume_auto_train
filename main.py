@@ -5,18 +5,24 @@ import easyocr
 import re
 import time
 
+tp_max = 100
+rp_max = 5
+
+tp_x1 = 478
+tp_y1 = 31
+tp_x2 = 553
+tp_y2 = 47
+tp_largura = tp_x2 - tp_x1
+tp_altura = tp_y2 - tp_y1
+regiao_tp = (tp_x1, tp_y1, tp_largura, tp_altura)
+
 rp_x1 = 694
 rp_y1 = 31
-
 rp_x2 = 724
 rp_y2 = 47
-
 rp_largura = rp_x2 - rp_x1
 rp_altura = rp_y2 - rp_y1
-
-print("Comecando sleep 1 segundos")
-time.sleep(1)
-print("Executando")
+regiao_rp = (rp_x1, rp_y1, rp_largura, rp_altura)
 
 
 def capturar_regiao(r):
@@ -42,24 +48,58 @@ def easyocr_text(img_np):
 
 def extrair_tprp(text):
     numbers = re.findall(r'\d+', text)
-    if len(numbers) >= 2:
-        return int(numbers[0]), int(numbers[1])
-    return None, None
+    if len(numbers) >= 1:
+        return int(numbers[0])
+    return None
 
 
 def main():
-    regiao_rp = (rp_x1, rp_y1, rp_largura, rp_altura)
+    pyautogui.PAUSE = 0.5
 
-    img = pyautogui.screenshot(region=regiao_rp)
-    img.save('screenshots/menu/rp.png')
-    img_np = np.array(img)
-    rp_mask = filtro_azul(img_np)
-    cv2.imwrite('screenshots/menu/rp_mask.png', rp_mask)
+    print("Comecando sleep 1 segundos")
+    time.sleep(1)
+    print("Executando")
 
-    text = easyocr_text(rp_mask)
-    print("Texto detectado:", text)
+    location = None
+    try:
+        if pyautogui.locateOnScreen("screenshots/menu/buttons/insideHome_button.png", confidence=0.8):
+            location = "home"
+    except Exception:
+        print("Nao esta em home")
 
-    rp_atual, rp_max = extrair_tprp(text)
+    if location is None:
+        try:
+            home_location = pyautogui.locateOnScreen("screenshots/menu/buttons/home_button.png", confidence=0.8)
+            if home_location:
+                pyautogui.click(home_location)
+        except Exception:
+            print("Algum erro ocorreu ao tentar identificar o botao home, menu atual desconhecido.")
+            home_location = None
+
+    img_tp = pyautogui.screenshot(region=regiao_tp)
+    img_tp.save('screenshots/temp/tp.png')
+    img_tp = np.array(img_tp)
+
+    img_rp = pyautogui.screenshot(region=regiao_rp)
+    img_rp.save('screenshots/temp/rp.png')
+    img_rp = np.array(img_rp)
+
+    img_rp_mask = filtro_azul(img_rp)
+    cv2.imwrite('screenshots/temp/rp_mask.png', img_rp_mask)
+
+    text_tp = easyocr_text(img_tp)
+    print("Texto detectado:", text_tp)
+
+    text_rp = easyocr_text(img_rp_mask)
+    print("Texto detectado:", text_rp)
+
+    tp_atual = extrair_tprp(text_tp)
+    if tp_atual is not None:
+        print(f"TP atual: {tp_atual} de {tp_max}")
+    else:
+        print("Nao foi possivel detectar o TP atual.")
+
+    rp_atual = extrair_tprp(text_rp)
     if rp_atual is not None:
         print(f"RP atual: {rp_atual} de {rp_max}")
     else:
